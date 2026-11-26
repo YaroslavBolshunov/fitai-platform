@@ -1,22 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
-import { fetchWorkouts } from '../api/mockApi';
-import { WORKOUT_CATEGORIES } from '../data/mockData';
-import RecipeCard from '../components/RecipeCard';
+import { fetchWorkouts } from '../api/api';
+import { WORKOUT_CATEGORIES } from '../data/constants';
+import WorkoutCard from '../components/WorkoutCard';
 import Loader from '../components/Loader';
-import './RecipesPage.css';
+import './WorkoutsPage.css';
 
-const RecipesPage = () => {
+const WorkoutsPage = () => {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('Все');
 
   useEffect(() => {
-    fetchWorkouts().then((data) => {
-      setWorkouts(data);
-      setLoading(false);
-    });
+    fetchWorkouts()
+      .then(setWorkouts)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = workouts.filter((w) => {
@@ -32,6 +33,13 @@ const RecipesPage = () => {
   });
 
   if (loading) return <Loader />;
+  if (error) {
+    return (
+      <div className="workouts-error">
+        Не удалось загрузить базу упражнений ({error}). Проверьте, запущен ли FastAPI-сервер на порту 8000.
+      </div>
+    );
+  }
 
   return (
     <div className="workouts-page">
@@ -75,7 +83,7 @@ const RecipesPage = () => {
       ) : (
         <div className="workouts-grid">
           {filtered.map((w) => (
-            <RecipeCard key={w.id} workout={w} />
+            <WorkoutCard key={w.id} workout={w} />
           ))}
         </div>
       )}
@@ -83,4 +91,4 @@ const RecipesPage = () => {
   );
 };
 
-export default RecipesPage;
+export default WorkoutsPage;

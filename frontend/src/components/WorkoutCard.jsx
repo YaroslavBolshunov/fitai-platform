@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Clock, Repeat, Layers, ArrowUpRight } from 'lucide-react';
-import './RecipeCard.css';
+import './WorkoutCard.css';
 
 const RecipeCard = ({ workout }) => (
   <Link to={`/workouts/${workout.id}`} className="workout-card">

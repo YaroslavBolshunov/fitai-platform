@@ -9,32 +9,35 @@ import {
   CheckCircle2,
   Sparkles,
 } from 'lucide-react';
-import { fetchWorkoutById } from '../api/mockApi';
+import { fetchWorkoutById } from '../api/api';
 import Loader from '../components/Loader';
-import './RecipePage.css';
+import './WorkoutPage.css';
 
-const RecipePage = () => {
+const WorkoutPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchWorkoutById(id).then((data) => {
-      setWorkout(data);
-      setLoading(false);
-    });
+    fetchWorkoutById(id)
+      .then(setWorkout)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }, [id]);
 
   if (loading) return <Loader />;
-  if (!workout) {
+  if (error || !workout) {
     return (
       <div className="workout-detail">
         <Link to="/workouts" className="workout-back">
           <ArrowLeft size={16} />
           <span>Назад к базе упражнений</span>
         </Link>
-        <p className="workout-not-found">Упражнение не найдено.</p>
+        <p className="workout-not-found">
+          {error ? `Ошибка загрузки: ${error}` : 'Упражнение не найдено.'}
+        </p>
       </div>
     );
   }
@@ -125,4 +128,4 @@ const RecipePage = () => {
   );
 };
 
-export default RecipePage;
+export default WorkoutPage;

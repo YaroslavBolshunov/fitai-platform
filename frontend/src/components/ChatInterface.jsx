@@ -11,14 +11,15 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { askCoach } from '../api/mockApi';
-import { SUGGESTED_PROMPTS } from '../data/mockData';
+import { askCoachStream } from '../api/api';
+import { SUGGESTED_PROMPTS } from '../data/constants';
 import './ChatInterface.css';
 
 const ChatInterface = () => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
   const bottomRef = useRef(null);
@@ -26,6 +27,8 @@ const ChatInterface = () => {
   const initialHandledRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const isBusy = loading || streaming;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,7 +43,7 @@ const ChatInterface = () => {
 
   const sendMessage = async (textToSend) => {
     const trimmed = textToSend.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || isBusy) return;
 
     const userMsg = {
       id: Date.now().toString(),
@@ -48,31 +51,52 @@ const ChatInterface = () => {
       content: trimmed,
     };
 
-    setMessages((prev) => [...prev, userMsg]);
+    const botMsgId = (Date.now() + 1).toString();
+    const initialBotMsg = {
+      id: botMsgId,
+      role: 'assistant',
+      content: '',
+      sources: [],
+    };
+
+    setMessages((prev) => [...prev, userMsg, initialBotMsg]);
     setInput('');
     setLoading(true);
+    setStreaming(true);
 
     try {
-      const reply = await askCoach(trimmed);
-      const botMsg = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: reply.text,
-        sources: reply.sources || [],
-      };
-      setMessages((prev) => [...prev, botMsg]);
-    } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: 'Не удалось связаться с моделью. Проверьте подключение или настройки API.',
-          sources: [],
+      await askCoachStream(trimmed, {
+        onChunk: (chunk) => {
+          setLoading(false);
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, content: m.content + chunk } : m
+            )
+          );
         },
-      ]);
+        onSources: (sources) => {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === botMsgId ? { ...m, sources } : m
+            )
+          );
+        },
+      });
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === botMsgId
+            ? {
+                ...m,
+                content: 'Не удалось связаться с моделью. Проверьте подключение или настройки API.',
+                sources: [],
+              }
+            : m
+        )
+      );
     } finally {
       setLoading(false);
+      setStreaming(false);
     }
   };
 
@@ -103,7 +127,9 @@ const ChatInterface = () => {
       }
 
       e.preventDefault();
-      sendMessage(input);
+      if (!isBusy) {
+        sendMessage(input);
+      }
     }
   };
 
@@ -114,7 +140,7 @@ const ChatInterface = () => {
   };
 
   const handleReset = () => {
-    if (loading) return;
+    if (isBusy) return;
     setMessages([]);
     setInput('');
   };
@@ -131,7 +157,7 @@ const ChatInterface = () => {
             type="button"
             className="chat-reset-btn"
             onClick={handleReset}
-            disabled={loading}
+            disabled={isBusy}
           >
             <RotateCcw size={14} />
             <span>Новый диалог</span>
@@ -167,77 +193,79 @@ const ChatInterface = () => {
           </div>
         ) : (
           <div className="chat-thread">
-            {messages.map((m) => (
-              <div
-                key={m.id}
-                className={`chat-row ${m.role === 'user' ? 'chat-row-user' : 'chat-row-bot'}`}
-              >
-                {m.role === 'assistant' && (
-                  <div className="chat-avatar chat-avatar-bot">
-                    <Sparkles size={16} />
-                  </div>
-                )}
+            {messages
+              .filter((m) => m.role === 'user' || m.content)
+              .map((m) => (
+                <div
+                  key={m.id}
+                  className={`chat-row ${m.role === 'user' ? 'chat-row-user' : 'chat-row-bot'}`}
+                >
+                  {m.role === 'assistant' && (
+                    <div className="chat-avatar chat-avatar-bot">
+                      <Sparkles size={16} />
+                    </div>
+                  )}
 
-                <div className="chat-content-col">
-                  <div
-                    className={`chat-bubble ${
-                      m.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'
-                    }`}
-                  >
-                    {m.role === 'assistant' ? (
-                      <div className="chat-markdown">
-                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <div className="chat-content-col">
+                    <div
+                      className={`chat-bubble ${
+                        m.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-bot'
+                      }`}
+                    >
+                      {m.role === 'assistant' ? (
+                        <div className="chat-markdown">
+                          <ReactMarkdown>{m.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        m.content
+                      )}
+                    </div>
+
+                    {m.role === 'assistant' && !isBusy && (
+                      <div className="chat-msg-actions">
+                        <button
+                          type="button"
+                          className="chat-copy-btn"
+                          onClick={() => handleCopy(m.id, m.content)}
+                          title="Скопировать ответ"
+                        >
+                          {copiedId === m.id ? <Check size={13} /> : <Copy size={13} />}
+                          <span>{copiedId === m.id ? 'Скопировано' : 'Копировать'}</span>
+                        </button>
                       </div>
-                    ) : (
-                      m.content
+                    )}
+
+                    {m.sources && m.sources.length > 0 && (
+                      <div className="chat-sources">
+                        <span className="chat-sources-label">Найдено в базе упражнений:</span>
+                        <div className="chat-sources-grid">
+                          {m.sources.map((src) => (
+                            <Link
+                              key={src.id}
+                              to={`/workouts/${src.id}`}
+                              className="chat-source-card"
+                            >
+                              <div className="chat-source-top">
+                                <Dumbbell size={14} className="chat-source-icon" />
+                                <span className="chat-source-cat">{src.category}</span>
+                                <ArrowUpRight size={14} className="chat-source-arrow" />
+                              </div>
+                              <div className="chat-source-name">{src.name}</div>
+                              <div className="chat-source-meta">{src.setsReps}</div>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     )}
                   </div>
 
-                  {m.role === 'assistant' && (
-                    <div className="chat-msg-actions">
-                      <button
-                        type="button"
-                        className="chat-copy-btn"
-                        onClick={() => handleCopy(m.id, m.content)}
-                        title="Скопировать ответ"
-                      >
-                        {copiedId === m.id ? <Check size={13} /> : <Copy size={13} />}
-                        <span>{copiedId === m.id ? 'Скопировано' : 'Копировать'}</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {m.sources && m.sources.length > 0 && (
-                    <div className="chat-sources">
-                      <span className="chat-sources-label">Найдено в базе упражнений:</span>
-                      <div className="chat-sources-grid">
-                        {m.sources.map((src) => (
-                          <Link
-                            key={src.id}
-                            to={`/workouts/${src.id}`}
-                            className="chat-source-card"
-                          >
-                            <div className="chat-source-top">
-                              <Dumbbell size={14} className="chat-source-icon" />
-                              <span className="chat-source-cat">{src.category}</span>
-                              <ArrowUpRight size={14} className="chat-source-arrow" />
-                            </div>
-                            <div className="chat-source-name">{src.name}</div>
-                            <div className="chat-source-meta">{src.setsReps}</div>
-                          </Link>
-                        ))}
-                      </div>
+                  {m.role === 'user' && (
+                    <div className="chat-avatar chat-avatar-user">
+                      <User size={16} />
                     </div>
                   )}
                 </div>
-
-                {m.role === 'user' && (
-                  <div className="chat-avatar chat-avatar-user">
-                    <User size={16} />
-                  </div>
-                )}
-              </div>
-            ))}
+              ))}
 
             {loading && (
               <div className="chat-row chat-row-bot">
@@ -273,7 +301,7 @@ const ChatInterface = () => {
             type="button"
             className="chat-send"
             onClick={() => sendMessage(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || isBusy}
             title="Отправить (Enter)"
           >
             <Send size={16} />

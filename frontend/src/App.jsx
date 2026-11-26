@@ -2,8 +2,8 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import ChatPage from './pages/ChatPage';
-import RecipesPage from './pages/RecipesPage';
-import RecipePage from './pages/RecipePage';
+import WorkoutsPage from './pages/WorkoutsPage';
+import WorkoutPage from './pages/WorkoutPage';
 
 function App() {
   return (
@@ -11,8 +11,8 @@ function App() {
       <Route path="/" element={<Layout />}>
         <Route index element={<HomePage />} />
         <Route path="chat" element={<ChatPage />} />
-        <Route path="workouts" element={<RecipesPage />} />
-        <Route path="workouts/:id" element={<RecipePage />} />
+        <Route path="workouts" element={<WorkoutsPage />} />
+        <Route path="workouts/:id" element={<WorkoutPage />} />
       </Route>
     </Routes>
   );

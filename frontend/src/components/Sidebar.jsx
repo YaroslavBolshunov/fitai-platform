@@ -68,7 +68,7 @@ const Sidebar = () => {
           <span className="sidebar-status-dot" />
           <div className="sidebar-status-info">
             <span className="sidebar-status-title">Локальный RAG</span>
-            <span className="sidebar-status-sub">Mock API • готов к LLM</span>
+            <span className="sidebar-status-sub">FastAPI + ChromaDB • LM Studio</span>
           </div>
           <Cpu size={16} className="sidebar-status-icon" />
         </div>

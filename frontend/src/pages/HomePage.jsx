@@ -9,7 +9,8 @@ import {
   Layers,
   Zap,
 } from 'lucide-react';
-import { mockWorkouts, WORKOUT_CATEGORIES } from '../data/mockData';
+import { fetchWorkouts } from '../api/api';
+import { WORKOUT_CATEGORIES } from '../data/constants';
 import './HomePage.css';
 
 const QUICK_HINTS = [
@@ -25,7 +26,14 @@ const HomePage = () => {
   const [quickQuery, setQuickQuery] = useState('');
   const [hintIndex, setHintIndex] = useState(0);
   const [hintVisible, setHintVisible] = useState(true);
+  const [workoutsCount, setWorkoutsCount] = useState(6);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetchWorkouts()
+      .then((data) => setWorkoutsCount(data.length))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (quickQuery) return;
@@ -67,7 +75,7 @@ const HomePage = () => {
 
         <p className="home-subtitle">
           Составляйте программы тренировок под свои цели, оттачивайте технику и подбирайте
-           упражнения под доступный инвентарь.
+          упражнения под доступный инвентарь.
         </p>
 
         <form className="home-quick-form" onSubmit={handleQuickSubmit}>
@@ -99,7 +107,7 @@ const HomePage = () => {
         <div className="home-stat-item">
           <Dumbbell size={16} className="home-stat-icon" />
           <span>
-            <strong>{mockWorkouts.length}</strong> упражнений в базе
+            <strong>{workoutsCount}</strong> упражнений в базе
           </span>
         </div>
         <div className="home-stat-divider" />
